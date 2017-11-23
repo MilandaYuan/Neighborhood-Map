@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neighborhood Map-p7</title>
+    <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="container">
+    <div class="option-box ">
+        <h1>Locations</h1>
+        <input type="text" data-bind="textInput: inputLocation" placeholder="Enter place"/>
+        <ul data-bind="foreach:locationList">
+            <li class="location-item" data-bind="text:title"></li>
+        </ul>
+    </div>
+    <div class="map-box">
+        <div class="menu-box"><img class="menuIcon " src="img/HAMBURGER-MENU.svg" alt="menuIcon"></div>
+        <div id="map"></div>
+    </div>
+</div>
+</body>
+</html>
+<script src="libs/knockout-3.4.2.js"></script>
+<script src="libs/jquery-3.2.1.min.js"></script>
+<script src="main.js"></script>
+
+
+
+
+
+
+
+
+
+
+
