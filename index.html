@@ -6,19 +6,19 @@
     <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-<div class="container">
+<main class="container" data-bind="css:{'menu-hidden':toggleStatus()}">
     <div class="option-box ">
         <h1>Locations</h1>
         <input type="text" data-bind="textInput: inputLocation" placeholder="Enter place"/>
         <ul data-bind="foreach:locationList">
-            <li class="location-item" data-bind="text:title"></li>
+            <li data-bind="text:title,click:$parent.showClickedMarker"></li>
         </ul>
     </div>
     <div class="map-box">
-        <div class="menu-box"><img class="menuIcon " src="img/HAMBURGER-MENU.svg" alt="menuIcon"></div>
+        <div class="menu-box"><img  data-bind="click:toggleSidebar" class="menuIcon" src="img/HAMBURGER-MENU.svg" alt="menuIcon"></div>
         <div id="map"></div>
     </div>
-</div>
+</main>
 </body>
 </html>
 <script src="libs/knockout-3.4.2.js"></script>
