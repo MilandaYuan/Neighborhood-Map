@@ -1,30 +1,7 @@
-let initialLocations;
-
-$.ajax({
-    url: 'json/data.json',
-    dataType: 'json',
-    async: true,
-    success: function (response) {
-        initialLocations = response;
-    }
-
-});
-
-
-//动态绑定原始数据
 const ViewModel = function () {
     this.locationList = ko.observableArray([]);
     this.inputLocation = ko.observable('');
-    initialLocations.forEach(locationItem => this.locationList.push(locationItem));
     this.showClickedMarker = ele => showClickedMarker(ele.title);
-
-    this.inputLocation.subscribe(newValue => {
-        const filteredLocation = initialLocations.filter(function (ele) {
-            return ele.title.includes(newValue) || ele.pinyin.includes(newValue);
-        });
-        this.locationList(filteredLocation);
-        showFilteredMarkers(filteredLocation);
-    });
 
     //点击汉堡菜单切换左侧地址列表的显示和隐藏状态
     this.toggleStatus = ko.observable(false);
@@ -34,57 +11,74 @@ const ViewModel = function () {
     }
 };
 
-ko.applyBindings(new ViewModel());
-
+const viewModel = new ViewModel();
+ko.applyBindings(viewModel);
 
 let map;
 const markers = [];
 
+//异步获取数据并绑定
+const dataPromise = $.ajax({
+    url: 'json/data.json',
+    dataType: 'json',
+}).then(response => {
+    response.forEach(locationItem => viewModel.locationList.push(locationItem));
+    viewModel.inputLocation.subscribe(newValue => {
+        const filteredLocation = response.filter(function (ele) {
+            return ele.title.includes(newValue) || ele.pinyin.includes(newValue);
+        });
+        viewModel.locationList(filteredLocation);
+        showFilteredMarkers(filteredLocation);
+    });
+    return response;
+});
+
 //初始化加载地图
-$.getScript('https://maps.googleapis.com/maps/api/js?libraries=places&key=AIzaSyBsP09nfFtiN4v2d_Nd6uUPKKNMn6B9ow0&v=3')
+const googleMapPromise = $.getScript('https://maps.googleapis.com/maps/api/js?libraries=places&key=[YOUR_API_KEY]&v=3')
     .done(function initMap(response) {
             map = new google.maps.Map(document.getElementById('map'), {
                 center: {lat: 39.90872, lng: 116.39748},
                 zoom: 12,
                 mapTypeControl: false
             });
-
-            let largeInfowindow = new google.maps.InfoWindow({maxWidth: 250, font: 10});
-            let bounds = new google.maps.LatLngBounds();
-
-            //初始化时让所有标记显示在页面上
-            for (let i = 0; i < initialLocations.length; i++) {
-                const title = initialLocations[i].title;
-                const position = initialLocations[i].location;
-                const placeID = initialLocations[i].id;
-                const wiki = initialLocations[i].wiki;
-                const marker = new google.maps.Marker({
-                    map: map,
-                    title: title,
-                    position: position,
-                    animation: google.maps.Animation.DROP,
-                    placeID: placeID,
-                    wiki: wiki
-                });
-                markers.push(marker);
-                marker.addListener('click', function () {
-                    toggleBounce(this);
-                    populateInfoWindow(this, largeInfowindow);
-                });
-                bounds.extend(markers[i].position);
-                map.fitBounds(bounds);
-            }
         }
     )
     .fail(function () {
         $('#map').toggleClass('map-error').text('Oops~~~获取地图失败，请检查您的网络');
+    });
 
-    })
+//异步获取数据和地图成功后，将标记显示在页面上
+Promise.all([dataPromise, googleMapPromise]).then(([dataResp]) => {
+    let bounds = new google.maps.LatLngBounds();
+    for (let i = 0; i < dataResp.length; i++) {
+        const title = dataResp[i].title;
+        const position = dataResp[i].location;
+        const placeID = dataResp[i].id;
+        const wiki = dataResp[i].wiki;
+        const marker = new google.maps.Marker({
+            map: map,
+            title: title,
+            position: position,
+            animation: google.maps.Animation.DROP,
+            placeID: placeID,
+            wiki: wiki
+        });
+        markers.push(marker);
+        marker.addListener('click', function () {
+            if(!this.infowindow){
+                let largeInfowindow = new google.maps.InfoWindow({maxWidth: 250});
+                this.infowindow = largeInfowindow;
+                toggleBounce(this);
+                populateInfoWindow(this, largeInfowindow);
+            }
+        });
+        bounds.extend(markers[i].position);
+        map.fitBounds(bounds);
+    }
+});
 
 //填充被点击标记的信息窗口内容
 function populateInfoWindow(marker, infowindow) {
-    if (infowindow.marker !== marker) {
-        infowindow.marker = marker;
         const service = new google.maps.places.PlacesService(map);
         service.getDetails({
             placeId: marker.placeID
@@ -119,7 +113,7 @@ function populateInfoWindow(marker, infowindow) {
                 infowindow.setContent(innerHTML);
                 infowindow.open(map, marker);
                 infowindow.addListener('closeclick', function () {
-                    infowindow.marker = null;
+                    marker.infowindow = null
                 });
 
                 getWikipediaContent(marker, function (content) {
@@ -129,8 +123,6 @@ function populateInfoWindow(marker, infowindow) {
 
             }
         });
-
-    }
 }
 
 //获取维基百科的内容
@@ -167,13 +159,17 @@ function toggleBounce(marker) {
     }
 }
 
-//显示被点击的地址对应标记的弹出窗口
+//显示左侧被点击地址对应标记的弹出窗口
 function showClickedMarker(clickedLocation) {
     for (let marker of markers) {
-        let largeInfowindow = new google.maps.InfoWindow({maxWidth: 250});
         if (clickedLocation === marker.title) {
-            toggleBounce(marker);
-            populateInfoWindow(marker, largeInfowindow);
+            if(!marker.infowindow){
+                let largeInfowindow = new google.maps.InfoWindow({maxWidth: 250});
+                marker.infowindow = largeInfowindow;
+                toggleBounce(marker);
+                populateInfoWindow(marker, largeInfowindow);
+
+            }
         }
     }
 }
